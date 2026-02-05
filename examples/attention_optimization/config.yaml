@@ -6,12 +6,12 @@ log_level: "INFO"
 # LLM configuration
 llm:
   # primary_model: "gemini-2.0-flash-lite"
-  primary_model: "gemini-3-flash-preview"
+  primary_model: "gemini-2.5-flash"
   # primary_model: "gpt-4.1-nano"
   # primary_model: "o3"
   primary_model_weight: 0.8
   # secondary_model: "gemini-2.0-flash"
-  secondary_model: "gemini-3-pro-preview"
+  secondary_model: "gemini-3-flash-preview"
   # secondary_model: "gpt-4.1-mini"
   secondary_model_weight: 0.2
   api_base: "https://generativelanguage.googleapis.com/v1beta/openai/"
