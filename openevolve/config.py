@@ -351,6 +351,7 @@ class DatabaseConfig:
     novelty_llm: Optional["LLMInterface"] = None
     embedding_model: Optional[str] = None
     similarity_threshold: float = 0.99
+    variant: str = "threshold-elites"
 
 
 @dataclass
