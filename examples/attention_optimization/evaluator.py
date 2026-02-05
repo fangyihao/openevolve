@@ -17,7 +17,11 @@ import re
 class MLIRAttentionEvaluator:
     def __init__(self):
         self.verify_tools()
-        self.mlir_file = Path("mlir/self_attn_with_consts_linalg_dialect.mlir")
+        # Get the absolute path of the current file
+        current_file_path = os.path.abspath(__file__)
+        # Get the directory containing the current file
+        current_dir = os.path.dirname(current_file_path)
+        self.mlir_file = Path(os.path.join(current_dir, "mlir/self_attn_with_consts_linalg_dialect.mlir"))
         # self.mlir_file = Path("mlir/export_mlir.mlir")
         self.baseline_mlir = None
         self.baseline_metrics = None
@@ -140,7 +144,7 @@ class MLIRAttentionEvaluator:
             'method': 'ir_analysis',
             'size_ratio': size_ratio,
             'ops_ratio': ops_ratio,
-            'optimization_score': base_speedup
+            'combined_score': base_speedup
         }
 
     def apply_optimizations(self, mlir_content, params):
