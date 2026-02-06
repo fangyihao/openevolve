@@ -403,7 +403,9 @@ class ProgramDatabase:
 
         # Calculate feature coordinates for Threshold-Elites
         embd = self._calculate_feature_coords(program)
+        score = get_fitness_score(program.metrics, self.config.feature_dimensions)
         program.embedding = embd
+        program.metrics["elite_score"] = score
 
         # Determine target island
         # If target_island is not specified and program has a parent, inherit parent's island
@@ -442,8 +444,8 @@ class ProgramDatabase:
             )
             return program.id  # Do not add non-novel program
 
-        score = program.metrics["combined_score"]
 
+        elite_threshold = getattr(self.config, "elite_threshold", 3)
         for pid in self.islands[island_idx]:
             other = self.programs[pid]
 
@@ -456,12 +458,12 @@ class ProgramDatabase:
             #similarity = self._cosine_similarity(embd, other.embedding)
             distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(embd, other.embedding)))
 
-            if distance < 3: 
+            if distance < elite_threshold: 
                 # self._is_better(program, other)
-                if score > other.metrics["combined_score"]:
-                    other.metrics["combined_score"] = float("-inf")
+                if score > other.metrics["elite_score"]:
+                    other.metrics["elite_score"] = float("-inf")
                 else:
-                    program.metrics["combined_score"] = float("-inf")
+                    program.metrics["elite_score"] = float("-inf")
 
 
         # Add to island

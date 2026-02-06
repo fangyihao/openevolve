@@ -352,7 +352,7 @@ class DatabaseConfig:
     embedding_model: Optional[str] = None
     similarity_threshold: float = 0.99
     variant: str = "threshold-elites"
-
+    elite_threshold: int = 3
 
 @dataclass
 class EvaluatorConfig:
