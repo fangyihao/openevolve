@@ -10,6 +10,7 @@ import random
 import shutil
 import time
 import uuid
+import math
 from dataclasses import asdict, dataclass, field, fields
 
 # FileLock removed - no longer needed with threaded parallel processing

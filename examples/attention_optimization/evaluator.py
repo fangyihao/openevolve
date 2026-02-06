@@ -271,7 +271,7 @@ class MLIRAttentionEvaluator:
                 "compile_time": float(compile_time or 0),
                 "method": result.get('method', 'ir_analysis'),
                 "size_ratio": result.get('size_ratio', 1.0),
-                "optimization_score": result.get('optimization_score', 1.0)
+                "combined_score": result.get('combined_score', 1.0)
             }
             
             print(f"📊 Result: error={error:.3f}, speedup={speedup:.3f}x, runtime={runtime:.3f}")
