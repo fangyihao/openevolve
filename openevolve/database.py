@@ -226,9 +226,9 @@ class ProgramDatabase:
         """
         variant = getattr(self.config, "variant", "map-elites")
         if variant == "map-elites":
-            self.add_map_elites_program(program, iteration, target_island)
+            return self.add_map_elites_program(program, iteration, target_island)
         elif variant == "threshold-elites":
-            self.add_threshold_elites_program(program, iteration, target_island)
+            return self.add_threshold_elites_program(program, iteration, target_island)
         else:
             raise NotImplementedError()
 
