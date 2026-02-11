@@ -351,7 +351,8 @@ class DatabaseConfig:
     novelty_llm: Optional["LLMInterface"] = None
     embedding_model: Optional[str] = None
     similarity_threshold: float = 0.99
-
+    variant: str = "map-elites"  # Parameters to support a new Quality-Diversity variant
+    elite_threshold: int = 3  # Distance threshold used by the threshold-elites variant
 
 @dataclass
 class EvaluatorConfig:

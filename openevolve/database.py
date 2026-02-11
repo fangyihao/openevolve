@@ -10,6 +10,8 @@ import random
 import shutil
 import time
 import uuid
+import math
+import copy
 from dataclasses import asdict, dataclass, field, fields
 
 # FileLock removed - no longer needed with threaded parallel processing
@@ -209,7 +211,29 @@ class ProgramDatabase:
         self.similarity_threshold = config.similarity_threshold
 
     def add(
-        self, program: Program, iteration: int = None, target_island: Optional[int] = None
+        self, program: Program, iteration: int = None, target_island: Optional[int] = None, 
+    ) -> str:
+        """
+        Add a program to the database
+
+        Args:
+            program: Program to add
+            iteration: Current iteration (defaults to last_iteration)
+            target_island: Specific island to add to (auto-detects parent's island if None)
+
+        Returns:
+            Program ID
+        """
+        variant = getattr(self.config, "variant", "map-elites")
+        if variant == "map-elites":
+            self.add_map_elites_program(program, iteration, target_island)
+        elif variant == "threshold-elites":
+            self.add_threshold_elites_program(program, iteration, target_island)
+        else:
+            raise NotImplementedError()
+
+    def add_map_elites_program(
+        self, program: Program, iteration: int = None, target_island: Optional[int] = None, 
     ) -> str:
         """
         Add a program to the database
@@ -339,6 +363,110 @@ class ProgramDatabase:
                 self.islands[island_idx].discard(existing_program_id)
 
             island_feature_map[feature_key] = program.id
+
+        # Add to island
+        self.islands[island_idx].add(program.id)
+
+        # Track which island this program belongs to
+        program.metadata["island"] = island_idx
+
+        # Update archive
+        self._update_archive(program)
+
+        # Enforce population size limit BEFORE updating best program tracking
+        # This ensures newly added programs aren't immediately removed
+        self._enforce_population_limit(exclude_program_id=program.id)
+
+        # Update the absolute best program tracking (after population enforcement)
+        self._update_best_program(program)
+
+        # Update island-specific best program tracking
+        self._update_island_best_program(program, island_idx)
+
+        # Save to disk if configured
+        if self.config.db_path:
+            self._save_program(program)
+
+        logger.debug(f"Added program {program.id} to island {island_idx}")
+
+        return program.id
+
+    def add_threshold_elites_program(
+        self, program: Program, iteration: int = None, target_island: Optional[int] = None, 
+    ) -> str:
+        # Store the program
+        # If iteration is provided, update the program's iteration_found
+        if iteration is not None:
+            program.iteration_found = iteration
+            # Update last_iteration if needed
+            self.last_iteration = max(self.last_iteration, iteration)
+
+        self.programs[program.id] = program
+
+        # Calculate feature coordinates for Threshold-Elites
+        embd = self._calculate_feature_coords(program)
+        score = get_fitness_score(program.metrics, self.config.feature_dimensions)
+        program.embedding = embd
+        program.metrics["elite_score"] = score
+
+        # Determine target island
+        # If target_island is not specified and program has a parent, inherit parent's island
+        if target_island is None and program.parent_id:
+            parent = self.programs.get(program.parent_id)
+            if parent and "island" in parent.metadata:
+                # Child inherits parent's island to maintain island isolation
+                island_idx = parent.metadata["island"]
+                logger.debug(
+                    f"Program {program.id} inheriting island {island_idx} from parent {program.parent_id}"
+                )
+            else:
+                # Parent not found or has no island, use current_island
+                island_idx = self.current_island
+                if parent:
+                    logger.warning(
+                        f"Parent {program.parent_id} has no island metadata, using current_island {island_idx}"
+                    )
+                else:
+                    logger.warning(
+                        f"Parent {program.parent_id} not found, using current_island {island_idx}"
+                    )
+        elif target_island is not None:
+            # Explicit target island specified (e.g., for migrants)
+            island_idx = target_island
+        else:
+            # No parent and no target specified, use current island
+            island_idx = self.current_island
+
+        island_idx = island_idx % len(self.islands)  # Ensure valid island
+
+        # Novelty check before adding
+        if not self._is_novel(program.id, island_idx):
+            logger.debug(
+                f"Program {program.id} failed in novelty check and won't be added in the island {island_idx}"
+            )
+            return program.id  # Do not add non-novel program
+
+
+        elite_threshold = getattr(self.config, "elite_threshold", 3)
+        for pid in self.islands[island_idx]:
+            other = self.programs[pid]
+
+            if other.embedding is None:
+                logger.warning(
+                    f"Warning: Program {other.id} has no embedding, skipping similarity check"
+                )
+                continue
+
+            #similarity = self._cosine_similarity(embd, other.embedding)
+            distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(embd, other.embedding)))
+
+            if distance < elite_threshold: 
+                # self._is_better(program, other)
+                if score > other.metrics["elite_score"]:
+                    other.metrics["elite_score"] = float("-inf")
+                else:
+                    program.metrics["elite_score"] = float("-inf")
+
 
         # Add to island
         self.islands[island_idx].add(program.id)
@@ -1313,6 +1441,7 @@ class ProgramDatabase:
                     metadata={"island": self.current_island},
                     artifacts_json=best_program.artifacts_json,
                     artifact_dir=best_program.artifact_dir,
+                    embedding=copy.deepcopy(best_program.embedding)
                 )
                 self.programs[copy_program.id] = copy_program
                 self.islands[self.current_island].add(copy_program.id)
@@ -1359,6 +1488,7 @@ class ProgramDatabase:
                     metadata={"island": self.current_island},
                     artifacts_json=best_program.artifacts_json,
                     artifact_dir=best_program.artifact_dir,
+                    embedding=copy.deepcopy(best_program.embedding)
                 )
                 self.programs[copy_program.id] = copy_program
                 self.islands[self.current_island].add(copy_program.id)
